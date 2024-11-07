@@ -1,0 +1,90 @@
+---
+- name: Установка Jenkins и Docker
+  hosts: all
+  become: yes
+  tasks:
+    - name: Установка необходимых пакетов
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: Получение версии дистрибутива
+      command: lsb_release -cs
+      register: ubuntu_version
+
+    - name: Проверка полученной версии дистрибутива
+      debug:
+        msg: "Версия дистрибутива: {{ ubuntu_version.stdout }}"
+
+    - name: Добавление GPG ключа для Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Добавление репозитория Docker
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ubuntu_version.stdout }} stable"
+        state: present
+
+    - name: Установка Docker
+      apt:
+        name: docker-ce
+        state: present
+
+    - name: Запуск и включение Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Добавление GPG ключа для Jenkins
+      block:
+       - apt_key:
+           url: "https://pkg.jenkins.io/debian/jenkins.io.key"
+           state: present
+      rescue:
+       - debug:
+           msg: "Не удалось добавить GPG ключ для Jenkins, но продолжаем выполнение playbook."
+
+    - name: Добавление репозитория Jenkins
+      apt_repository:
+        repo: deb http://pkg.jenkins.io/debian-stable binary/
+        state: present
+
+    - name: Установка Jenkins
+      apt:
+        name: jenkins
+        state: present
+
+    - name: Установка актуальной JAVA-17 версии
+      apt:
+        name: openjdk-17-jdk
+        state: present
+
+    - name: Запуск и включение Jenkins
+      systemd:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    - name: Создание Docker volume для Jenkins
+      docker_volume:
+        name: jenkins_home
+
+    - name: Запуск Jenkins в Docker контейнере
+      docker_container:
+        name: jenkins
+        image: jenkins/jenkins:lts
+        state: started
+        restart_policy: always
+        published_ports:
+          - "8081:8080"
+          - "50000:50000"
+        volumes:
+          - jenkins_home:/var/jenkins_home
+
