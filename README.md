@@ -14,6 +14,8 @@ sudo systemctl status docker
 sudo usermod -aG docker $USER
 >>>logout/login<<<
 ```
+
+
 Install Jenkins on Ubuntu 18.04
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ```
